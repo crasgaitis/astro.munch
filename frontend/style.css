@@ -1,10 +1,13 @@
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
+    background-color: rgb(45, 46, 48);
 }
+
 
 h1 {
     text-align: center;
+    color: white;
 }
 
 #galaxy-input-container {
@@ -27,4 +30,21 @@ button {
     margin: 10px;
     padding: 10px 20px;
     cursor: pointer;
+}
+
+#galaxy-input-container{
+    text-align: center;
+    margin: 0 auto;
+    width: 70vw
+}
+
+.galaxy-form{
+    background-color: lightblue
+}
+
+[class^="position-"],
+[class^="velocity-"] {
+    width: 80px; 
+    margin-right: 5px; 
+    box-sizing: border-box;
 }

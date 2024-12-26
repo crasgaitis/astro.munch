@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxy Visualization</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        const galaxyShapes = ["Spiral", "Elliptical", "Irregular"];
+
+        function init() {
+            // init scene
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 100;
+
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // OrbitControls (user)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.screenSpacePanning = false;
+            controls.maxPolarAngle = Math.PI / 2;
+
+            // lighting
+            const light = new THREE.PointLight(0xFFFFFF, 1, 500);
+            light.position.set(0, 0, 50);
+            scene.add(light);
+
+            // galaxies
+            createGalaxy("Spiral", 10, 0.5, 50, new THREE.Vector3(-30, 0, 0));
+            createGalaxy("Elliptical", 15, 0.8, 40, new THREE.Vector3(30, 0, 0));
+            createGalaxy("Irregular", 12, 0.3, 60, new THREE.Vector3(0, 30, 0));
+
+            // animation loop
+            animate();
+        }
+
+        function createGalaxy(shape, size, gasContent, radius, position) {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const colors = [];
+
+            // generate galaxy particles
+            for (let i = 0; i < size * 1000; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * radius;
+
+                let x = 0, y = 0, z = 0;
+
+                if (shape === "Spiral") {
+                    const particle_type = Math.random()
+                    // disk region
+                    if (particle_type > 0.2) { 
+                        // exponentially decreasing density acc. to radius
+                        const diskDensity = Math.exp(-Math.pow(distance / (radius), 20));  
+                        const scaledDistance = distance * diskDensity;
+
+                        x = scaledDistance * Math.cos(angle);
+                        y = scaledDistance * Math.sin(angle);
+                        z = (Math.random() - 0.5) * radius / 5;  // adjust for vertical spread
+                        
+                    }
+                    else {
+                        const spiralFactor = Math.sqrt(distance) / 4; // spiral spread
+        
+                        // arms at opposite angles starting at the center
+                        const armOffset = (i % 2 === 0) ? Math.PI : 2 * Math.PI;  // alternate directions
+                        
+                        // calculate angle and position for the spiral arms
+                        const theta = spiralFactor * Math.PI * 2;
+                
+                        // density factor: denser closer to the center, less dense outward
+                        const spiralDensity = Math.exp(-Math.pow(distance / radius, 5)); 
+                
+                        const randomFactor = Math.random() * spiralDensity;
+                        x = distance * Math.cos(theta + armOffset);
+                        y = distance * Math.sin(theta + armOffset);
+                        z = (Math.random() - 0.5) * radius / 5;
+                        
+                    }
+                } else if (shape === "Elliptical") {
+                    // TODO: add in density profile
+                    x = distance * Math.cos(angle);
+                    y = distance * Math.sin(angle) * 0.6;  
+                    z = (Math.random() - 0.5) * radius / 3;  
+                } else if (shape === "Irregular") {
+                    // TODO: implement
+                    x = (Math.random() - 0.5) * radius;
+                    y = (Math.random() - 0.5) * radius;
+                    z = (Math.random() - 0.5) * radius;
+                }
+
+                vertices.push(x + position.x, y + position.y, z + position.z);
+
+                const bellCurve = Math.random() * 2 - 1;
+                const intensity = Math.exp(-bellCurve * bellCurve);
+                const color = new THREE.Color();
+                color.setHSL((gasContent + bellCurve) / 2, 1, intensity);
+
+                colors.push(color.r, color.g, color.b);
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            // black hole
+            const blackHoleGeometry = new THREE.SphereGeometry(1, 32, 32);
+            const blackHoleMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            const blackHole = new THREE.Mesh(blackHoleGeometry, blackHoleMaterial);
+            blackHole.position.copy(position);
+            scene.add(blackHole);
+
+            // TODO: add bulge around black hole
+        }
+
+        // animation
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // update controls
+            controls.update();
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
