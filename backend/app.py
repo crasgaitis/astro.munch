@@ -5,7 +5,7 @@ from flask_cors import CORS
 import os
 import json
 
-app = Flask(__name__, static_folder="../frontend", static_url_path="/static")
+app = Flask(__name__, static_folder="../frontend", static_url_path="")
 CORS(app) 
 
 @app.route('/')
@@ -18,8 +18,9 @@ def submit_parameters():
     print(data)
     response = process_simulation_params(data)
     params_query = urllib.parse.urlencode(response)
-    return redirect(f'/static/sim.html?{params_query}')
-    # return jsonify({"status": "success", "message": "Parameters received", "data": response}), 200
+    # return redirect(os.path.join(app.static_folder), f'sim.html?{params_query}')
+    return jsonify({"status": "success", "message": "Parameters received", 
+                    "data": response, "redirect": f"/sim.html?{params_query}"}), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
