@@ -1,4 +1,6 @@
 <div align="center">
+  <img width="102" height="102" alt="image" src="https://github.com/user-attachments/assets/f1f81f1f-dd3f-4c07-815e-4efc79b7ac7f" />
+
   <h1> 🌌 astro.munch 🌠 </h1>
   <em> The universe is your buffet! Swallow the stars in this galactic cannibalism simulator. </em>
   <img src = "https://github.com/user-attachments/assets/4c4872e5-1d7d-420e-a137-a29181f42b2f">

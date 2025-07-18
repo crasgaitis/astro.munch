@@ -4,6 +4,13 @@ body {
     background-color: rgb(45, 46, 48);
 }
 
+#logo {
+    width: 100px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    border-radius: 20px
+}
 
 h1 {
     text-align: center;

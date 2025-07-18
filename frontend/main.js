@@ -137,10 +137,16 @@ submitBtn.addEventListener("click", () => {
     .then(response => response.json())
     .then(result => {
         console.log("Server Response:", result);
-        alert("Parameters submitted successfully!");
+        if (result.redirect) {
+            // Redirect browser to sim.html with parameters
+            window.location.href = result.redirect;
+        } else {
+            alert("Parameters submitted successfully!");
+        }
     })
     .catch(error => {
         console.error("Error:", error);
         alert("Failed to submit parameters.");
     });
+
 });
