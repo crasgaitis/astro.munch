@@ -12,9 +12,11 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/noisejs@2.1.0/index.min.js"></script>
 
     <script>
         let scene, camera, renderer, controls;
+        const noiseGen = new Noise(Math.random());
         const galaxyShapes = ["Spiral", "Elliptical", "Irregular"];
 
         function init() {
@@ -42,7 +44,7 @@
             // galaxies
             createGalaxy("Spiral", 10, 0.5, 50, new THREE.Vector3(-30, 0, 0));
             createGalaxy("Elliptical", 15, 0.8, 40, new THREE.Vector3(30, 0, 0));
-            createGalaxy("Irregular", 12, 0.3, 60, new THREE.Vector3(0, 30, 0));
+            createGalaxy("Irregular", 12, 0.1, 60, new THREE.Vector3(0, 30, 0));
 
             // animation loop
             animate();
@@ -60,47 +62,93 @@
 
                 let x = 0, y = 0, z = 0;
 
-                if (shape === "Spiral") {
-                    const particle_type = Math.random()
-                    // disk region
-                    if (particle_type > 0.2) { 
-                        // exponentially decreasing density acc. to radius
-                        const diskDensity = Math.exp(-Math.pow(distance / (radius), 20));  
-                        const scaledDistance = distance * diskDensity;
+        if (shape === "Spiral") {
+            const particle_type = Math.random();
+            const r = distance;
+            const spiralFactor = Math.sqrt(r / radius);  // smoother curve
+            const spiralDensity = Math.exp(-Math.pow(r / radius, 4));
 
-                        x = scaledDistance * Math.cos(angle);
-                        y = scaledDistance * Math.sin(angle);
-                        z = (Math.random() - 0.5) * radius / 5;  // adjust for vertical spread
-                        
-                    }
-                    else {
-                        const spiralFactor = Math.sqrt(distance) / 4; // spiral spread
-        
-                        // arms at opposite angles starting at the center
-                        const armOffset = (i % 2 === 0) ? Math.PI : 2 * Math.PI;  // alternate directions
-                        
-                        // calculate angle and position for the spiral arms
-                        const theta = spiralFactor * Math.PI * 2;
-                
-                        // density factor: denser closer to the center, less dense outward
-                        const spiralDensity = Math.exp(-Math.pow(distance / radius, 5)); 
-                
-                        const randomFactor = Math.random() * spiralDensity;
-                        x = distance * Math.cos(theta + armOffset);
-                        y = distance * Math.sin(theta + armOffset);
-                        z = (Math.random() - 0.5) * radius / 5;
-                        
-                    }
+            const numArms = 2;
+            const armIndex = i % numArms;
+            const direction = (armIndex === 0) ? 1 : -1;  // clockwise vs counterclockwise
+
+            const theta = spiralFactor * Math.PI * 6 * direction;  
+            const baseAngle = (2 * Math.PI * armIndex) / numArms;  // offset between arms
+
+            if (particle_type > 0.7) {
+                // central bulge - denser toward the center, slightly distorted ellipsoid
+
+                const phi = Math.acos(2 * Math.random() - 1);  
+                const azimuth = 2 * Math.PI * Math.random();
+
+                // radius with higher density toward center
+                const rand = Math.random();
+                let scaledR;
+                if (rand < Math.exp(-Math.pow(r / radius, 0.01))) {
+                    scaledR = r * 0.2 * Math.random(); 
+                } else {
+                    scaledR = (r * 0.75) * (0.3 + 0.7 * Math.random()); 
+                }
+
+                const distortion = 0.1 * (Math.random() - 0.5);
+
+                const x_base = scaledR * Math.sin(phi) * Math.cos(azimuth);
+                const y_base = scaledR * Math.sin(phi) * Math.sin(azimuth);
+                const z_base = scaledR * 0.5 * Math.cos(phi);  // flattened z
+
+                x = x_base * (1 + distortion);
+                y = y_base * (1 + distortion);
+                z = z_base * (1 + distortion);
+            
+
+            } else {
+                // spiral arms with 3D winding and opposite rotations
+                const armRadius = r * spiralDensity;
+
+                // base spiral in xy-plane
+                const xBase = armRadius * Math.cos(theta + baseAngle);
+                const yBase = armRadius * Math.sin(theta + baseAngle);
+
+                const perpendicularAngle = theta + Math.PI / 2;
+                const thickness = (Math.random() - 0.5) * radius / 3; 
+                const offsetX = thickness * Math.cos(perpendicularAngle);
+                const offsetY = thickness * Math.sin(perpendicularAngle);
+
+                // 3D winding in z
+                const windAmplitude = radius / 5;
+                const windFrequency = 5;  // number of vertical waves
+                const zSpiral = Math.sin(theta * windFrequency) * windAmplitude * spiralDensity;
+
+                x = (xBase + offsetX) * (1 + 0.05 * (Math.random() - 0.5));
+                y = (yBase + offsetY) * (1 + 0.05 * (Math.random() - 0.5));
+                z = zSpiral + (Math.random() - 0.5) * radius / 15 * spiralDensity;
+            }
+                                                
+
                 } else if (shape === "Elliptical") {
                     // TODO: add in density profile
                     x = distance * Math.cos(angle);
                     y = distance * Math.sin(angle) * 0.6;  
                     z = (Math.random() - 0.5) * radius / 3;  
+                
                 } else if (shape === "Irregular") {
-                    // TODO: implement
-                    x = (Math.random() - 0.5) * radius;
-                    y = (Math.random() - 0.5) * radius;
-                    z = (Math.random() - 0.5) * radius;
+                    // TODO: make less perfectly spherical
+                    const angle = Math.random() * 2 * Math.PI;
+                    const phi = Math.acos(2 * Math.random() - 1);
+
+                    let dx = Math.sin(phi) * Math.cos(angle);
+                    let dy = Math.sin(phi) * Math.sin(angle);
+                    let dz = Math.cos(phi);
+
+                    const noiseScale = 1.05; // tweak for finer/coarser bumps
+                    const noiseValue = noiseGen.simplex3(dx * noiseScale, dy * noiseScale, dz * noiseScale);
+
+                    const distortionStrength = 0.6;
+                    const distortedRadius = (radius/2) * (1 + distortionStrength * noiseValue);
+
+                    x = distortedRadius * dx;
+                    y = distortedRadius * dy;
+                    z = distortedRadius * dz;
                 }
 
                 vertices.push(x + position.x, y + position.y, z + position.z);
