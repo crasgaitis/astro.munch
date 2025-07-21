@@ -50,6 +50,24 @@
             animate();
         }
 
+        function fractalNoise3D(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2) {
+            let amplitude = 1.0;
+            let frequency = 1.0;
+            let noiseSum = 0.0;
+            let maxAmplitude = 0.0;
+
+            for (let i = 0; i < octaves; i++) {
+                noiseSum += amplitude * noiseGen.simplex3(x * frequency, y * frequency, z * frequency);
+                maxAmplitude += amplitude;
+
+                amplitude *= persistence;  // amplitude decreases with each octave
+                frequency *= lacunarity;   // frequency increases with each octave
+            }
+
+            return noiseSum / maxAmplitude;  // normalize result to [-1,1]
+        }
+
+
         function createGalaxy(shape, size, gasContent, radius, position) {
             const geometry = new THREE.BufferGeometry();
             const vertices = [];
@@ -62,75 +80,169 @@
 
                 let x = 0, y = 0, z = 0;
 
-        if (shape === "Spiral") {
-            const particle_type = Math.random();
-            const r = distance;
-            const spiralFactor = Math.sqrt(r / radius);  // smoother curve
-            const spiralDensity = Math.exp(-Math.pow(r / radius, 4));
+                if (shape === "Spiral") {
+                    const particle_type = Math.random();
+                    const spiralFactor = Math.sqrt(distance / radius);  // smoother curve
+                    const spiralDensity = Math.exp(-Math.pow(distance / radius, 4));
 
-            const numArms = 2;
-            const armIndex = i % numArms;
-            const direction = (armIndex === 0) ? 1 : -1;  // clockwise vs counterclockwise
+                    const numArms = 2;
+                    const armIndex = i % numArms;
+                    const direction = (armIndex === 0) ? 1 : -1;  // clockwise vs counterclockwise
 
-            const theta = spiralFactor * Math.PI * 6 * direction;  
-            const baseAngle = (2 * Math.PI * armIndex) / numArms;  // offset between arms
+                    const theta = spiralFactor * Math.PI * 6 * direction;  
+                    const baseAngle = (2 * Math.PI * armIndex) / numArms;  // offset between arms
 
-            if (particle_type > 0.7) {
-                // central bulge - denser toward the center, slightly distorted ellipsoid
+                    if (particle_type > 0.7) {
+                        // central bulge - denser toward the center, slightly distorted ellipsoid
 
-                const phi = Math.acos(2 * Math.random() - 1);  
-                const azimuth = 2 * Math.PI * Math.random();
+                        const phi = Math.acos(2 * Math.random() - 1);  
+                        const azimuth = 2 * Math.PI * Math.random();
 
-                // radius with higher density toward center
-                const rand = Math.random();
-                let scaledR;
-                if (rand < Math.exp(-Math.pow(r / radius, 0.01))) {
-                    scaledR = r * 0.2 * Math.random(); 
-                } else {
-                    scaledR = (r * 0.75) * (0.3 + 0.7 * Math.random()); 
+                        // radius with higher density toward center
+                        const rand = Math.random();
+                        let scaledR;
+                        if (rand < Math.exp(-Math.pow(distance / radius, 0.01))) {
+                            scaledR = distance * 0.2 * Math.random(); 
+                        } else {
+                            scaledR = (distance * 0.75) * (0.3 + 0.7 * Math.random()); 
+                        } 
+
+                        const distortion = 0.1 * (Math.random() - 0.5);
+
+                        const x_base = scaledR * Math.sin(phi) * Math.cos(azimuth);
+                        const y_base = scaledR * Math.sin(phi) * Math.sin(azimuth);
+                        const z_base = scaledR * 0.5 * Math.cos(phi);  // flattened z
+
+                        x = x_base * (1 + distortion);
+                        y = y_base * (1 + distortion);
+                        z = z_base * (1 + distortion);
+                    
+
+                    } else {
+                        // spiral arms with 3D winding and opposite rotations
+                        const armRadius = distance * spiralDensity;
+
+                        // base spiral in xy-plane
+                        const xBase = armRadius * Math.cos(theta + baseAngle);
+                        const yBase = armRadius * Math.sin(theta + baseAngle);
+
+                        const perpendicularAngle = theta + Math.PI / 2;
+                        const thickness = (Math.random() - 0.5) * radius / 3; 
+                        const offsetX = thickness * Math.cos(perpendicularAngle);
+                        const offsetY = thickness * Math.sin(perpendicularAngle);
+
+                        // 3D winding in z
+                        const windAmplitude = radius / 5;
+                        const windFrequency = 5;  // number of vertical waves
+                        const zSpiral = Math.sin(theta * windFrequency) * windAmplitude * spiralDensity;
+
+                        x = (xBase + offsetX) * (1 + 0.05 * (Math.random() - 0.5));
+                        y = (yBase + offsetY) * (1 + 0.05 * (Math.random() - 0.5));
+                        z = zSpiral + (Math.random() - 0.5) * radius / 15 * spiralDensity;
+                    }
                 }
+                                    
+                else if (shape === "Elliptical") {
+                    const ellipticityY = 0.6;
+                    const ellipticityZ = 0.6;
+                    const numClumps = 4;
 
-                const distortion = 0.1 * (Math.random() - 0.5);
+                    if (typeof clumpCenters === "undefined") { // pre define clumpCenters
+                        clumpCenters = [];
+                        for (let c = 0; c < numClumps; c++) {
+                            // TODO: bias this towards center
+                            const r = distance * 0.85 * Math.cbrt(Math.random());
+                            const angleC = Math.random() * 2 * Math.PI;
+                            const phiC = Math.acos(2 * Math.random() - 1);
 
-                const x_base = scaledR * Math.sin(phi) * Math.cos(azimuth);
-                const y_base = scaledR * Math.sin(phi) * Math.sin(azimuth);
-                const z_base = scaledR * 0.5 * Math.cos(phi);  // flattened z
+                            let dxC = Math.sin(phiC) * Math.cos(angleC);
+                            let dyC = Math.sin(phiC) * Math.sin(angleC);
+                            let dzC = Math.cos(phiC);
 
-                x = x_base * (1 + distortion);
-                y = y_base * (1 + distortion);
-                z = z_base * (1 + distortion);
-            
+                            dyC *= ellipticityY;
+                            dzC *= ellipticityZ;
 
-            } else {
-                // spiral arms with 3D winding and opposite rotations
-                const armRadius = r * spiralDensity;
+                            clumpCenters.push({
+                                x: r * dxC,
+                                y: r * dyC,
+                                z: r * dzC,
+                            });
+                        }
+                    }
 
-                // base spiral in xy-plane
-                const xBase = armRadius * Math.cos(theta + baseAngle);
-                const yBase = armRadius * Math.sin(theta + baseAngle);
+                    const clumpProbability = 0.1; 
 
-                const perpendicularAngle = theta + Math.PI / 2;
-                const thickness = (Math.random() - 0.5) * radius / 3; 
-                const offsetX = thickness * Math.cos(perpendicularAngle);
-                const offsetY = thickness * Math.sin(perpendicularAngle);
+                    if (Math.random() < clumpProbability) {
+                        const clump = clumpCenters[Math.floor(Math.random() * clumpCenters.length)];
 
-                // 3D winding in z
-                const windAmplitude = radius / 5;
-                const windFrequency = 5;  // number of vertical waves
-                const zSpiral = Math.sin(theta * windFrequency) * windAmplitude * spiralDensity;
+                        const offsetAngle = Math.random() * 2 * Math.PI;
+                        const offsetPhi = Math.acos(2 * Math.random() - 1);
 
-                x = (xBase + offsetX) * (1 + 0.05 * (Math.random() - 0.5));
-                y = (yBase + offsetY) * (1 + 0.05 * (Math.random() - 0.5));
-                z = zSpiral + (Math.random() - 0.5) * radius / 15 * spiralDensity;
-            }
-                                                
+                        let offsetDx = Math.sin(offsetPhi) * Math.cos(offsetAngle);
+                        let offsetDy = Math.sin(offsetPhi) * Math.sin(offsetAngle);
+                        let offsetDz = Math.cos(offsetPhi);
 
-                } else if (shape === "Elliptical") {
-                    // TODO: add in density profile
-                    x = distance * Math.cos(angle);
-                    y = distance * Math.sin(angle) * 0.6;  
-                    z = (Math.random() - 0.5) * radius / 3;  
-                
+                        const irregularScaleX = 0.7 + 0.6 * Math.random();
+                        const irregularScaleY = 0.7 + 0.6 * Math.random();
+                        const irregularScaleZ = 0.7 + 0.6 * Math.random();
+
+                        offsetDx *= irregularScaleX;
+                        offsetDy *= irregularScaleY;
+                        offsetDz *= irregularScaleZ;
+
+                        const length = Math.sqrt(offsetDx * offsetDx + offsetDy * offsetDy + offsetDz * offsetDz);
+                        offsetDx /= length;
+                        offsetDy /= length;
+                        offsetDz /= length;
+
+                        const clumpRadiusScale = 0.08 + Math.random() * (0.2 - 0.08);
+
+                        const offsetRadius = radius * clumpRadiusScale * (0.5 + 0.7 * Math.random());
+
+                        x = clump.x + offsetRadius * offsetDx;
+                        y = clump.y + offsetRadius * offsetDy;
+                        z = clump.z + offsetRadius * offsetDz;
+                    
+                    } else {
+
+                        const alpha = 0.9;
+                        let r = radius * Math.pow(Math.random(), alpha);
+
+                        const angleB = Math.random() * 2 * Math.PI;
+                        const phiB = Math.acos(2 * Math.random() - 1);
+
+                        let dxB = Math.sin(phiB) * Math.cos(angleB);
+                        let dyB = Math.sin(phiB) * Math.sin(angleB);
+                        let dzB = Math.cos(phiB);
+
+                        dyB *= ellipticityY;
+                        dzB *= ellipticityZ;
+
+                        // fractal noise parameters
+                        const noiseScale = 2.0;    // aka base frequency scale
+                        const octaves = 1;
+                        const persistence = 0.9;
+                        const lacunarity = 9.0;
+
+                        const noiseValue = fractalNoise3D(
+                            dxB * noiseScale,
+                            dyB * noiseScale,
+                            dzB * noiseScale,
+                            octaves,
+                            persistence,
+                            lacunarity
+                        );
+
+                        const noiseFactor = 1 + 0.3 * noiseValue;
+
+                        r = r * noiseFactor;
+
+                        x = r * dxB;
+                        y = r * dyB;
+                        z = r * dzB;
+                    }
+    
+                                
                 } else if (shape === "Irregular") {
                     // TODO: make less perfectly spherical
                     const angle = Math.random() * 2 * Math.PI;
