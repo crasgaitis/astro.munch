@@ -138,7 +138,6 @@ submitBtn.addEventListener("click", () => {
     .then(result => {
         console.log("Server Response:", result);
         if (result.redirect) {
-            // Redirect browser to sim.html with parameters
             window.location.href = result.redirect;
         } else {
             alert("Parameters submitted successfully!");
